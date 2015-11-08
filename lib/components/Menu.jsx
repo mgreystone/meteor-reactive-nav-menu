@@ -29,8 +29,15 @@ ReactiveMenu.Menu = React.createClass({
     this.updateMenu(nextProps)
   },
 
-  updateMenu (props) {
-    props = props || this.props
+  componentWillUnmount () {
+    const { menu } = this.state
+
+    if (menu) {
+      menu.off('update'. this._forceUpdateBound)
+    }
+  },
+
+  updateMenu (props = this.props) {
     const { menu: prevMenu } = this.state
     const { id } = props
     const menu = ReactiveMenu.getMenu(id)

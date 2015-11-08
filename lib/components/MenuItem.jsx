@@ -19,16 +19,31 @@ ReactiveMenu.MenuItem = React.createClass({
   },
 
   componentWillMount () {
+    const { item } = this.props
+    this._forceUpdateBound = this.forceUpdate.bind(this)
     this.submenuId = `reactive-menu-submenu-${++lastId}`
+    item.events.on('update', this._forceUpdateBound)
     this.updateHasChildren()
   },
 
   componentWillReceiveProps (nextProps) {
+    const { item } = this.props
+    const { item: nextItem } = nextProps
+
+    if (item !== nextItem) {
+      item.events.off('update', this._forceUpdateBound)
+      nextItem.events.on('update', this._forceUpdateBound)
+    }
+
     this.updateHasChildren(nextProps)
   },
 
-  updateHasChildren (props) {
-    props = props || this.props
+  componentWillUnmount () {
+    const { item } = this.props
+    item.events.off('update', this._forceUpdateBound)
+  },
+
+  updateHasChildren (props = this.props) {
     const { item, depth, level } = props
     const hasChildren = item.count() > 0 && (depth == null || level < depth)
     this.setState({ hasChildren })
@@ -76,6 +91,26 @@ ReactiveMenu.MenuItem = React.createClass({
         <span {...commonProps}>{title}</span>
       )
     }
+  },
+
+  renderBadge () {
+    const { className: baseClassName, item, level } = this.props
+    const badge = totalBadges(item)
+
+    if (badge === 0) {
+      return null
+    }
+
+    const className = classNames({
+      [`${baseClassName}__badge`]: true,
+      [`${baseClassName}__badge--level${level}`]: true
+    })
+
+    return (
+      <small className={className}>
+        {badge}
+      </small>
+    )
   },
 
   renderSubMenu () {
@@ -129,9 +164,20 @@ ReactiveMenu.MenuItem = React.createClass({
         onMouseLeave={this.onMouseLeave}
       >
         {this.renderLink()}
+        {this.renderBadge()}
         {this.renderSubMenu()}
       </div>
     )
   }
 
 })
+
+function totalBadges (item) {
+  let result = item.badge
+
+  for (let child of item) {
+    result += totalBadges(child)
+  }
+
+  return result
+}
