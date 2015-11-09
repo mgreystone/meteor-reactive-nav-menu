@@ -7,13 +7,21 @@ ReactiveMenu.MenuItem = React.createClass({
   propTypes: {
     className: React.PropTypes.string.isRequired,
     depth: React.PropTypes.number,
+    expandable: React.PropTypes.bool.isRequired,
+    index: React.PropTypes.number.isRequired,
     item: React.PropTypes.instanceOf(MenuItem).isRequired,
-    level: React.PropTypes.number.isRequired
+    level: React.PropTypes.number.isRequired,
+    onDownKey: React.PropTypes.func.isRequired,
+    onFocus: React.PropTypes.func.isRequired,
+    onUpKey: React.PropTypes.func.isRequired
   },
 
   getInitialState () {
+    const { index, level } = this.props
+
     return {
       animating: false,
+      canTab: index === 0 && level === 1,
       expanded: false
     }
   },
@@ -49,19 +57,128 @@ ReactiveMenu.MenuItem = React.createClass({
     this.setState({ hasChildren })
   },
 
+  getLinkEl () {
+    const { link } = this.refs
+    const linkEl = ReactDOM.findDOMNode(link)
+    return linkEl
+  },
+
+  focus () {
+    this.getLinkEl().focus()
+    this.setState({ canTab: true })
+    this.props.onFocus(this)
+  },
+
+  focusLast () {
+    const { item } = this.props
+    const { hasChildren } = this.state
+    let ref
+
+    if (hasChildren) {
+      ref = this.refs[`item${item.count() - 1}`]
+    } else {
+      ref = this
+    }
+
+    ref.focus()
+  },
+
+  blur () {
+    this.getLinkEl().blur()
+    this.setState({ canTab: false })
+  },
+
   onMouseEnter () {
-    this.setState({ animating: true, expanded: true })
+    const { expandable } = this.props
+    this.setState({ animating: true, expanded: expandable })
   },
 
   onMouseLeave () {
     this.setState({ animating: true, expanded: false })
   },
 
+  onLinkClick () {
+    this.setState({ canTab: true })
+    this.props.onFocus(this)
+  },
+
+  onLinkKeyUp (event) {
+    const KEY_LEFT = 37
+    const KEY_UP = 38
+    const KEY_RIGHT = 39
+    const KEY_DOWN = 40
+
+    const methods = {
+      [KEY_LEFT]: this.onLinkLeftKey,
+      [KEY_RIGHT]: this.onLinkRightKey,
+      [KEY_UP]: this.onLinkUpKey,
+      [KEY_DOWN]: this.onLinkDownKey
+    }
+
+    if (methods.hasOwnProperty(event.keyCode)) {
+      methods[event.keyCode]()
+    }
+  },
+
+  onLinkLeftKey () {
+    // TODO
+  },
+
+  onLinkRightKey () {
+    // TODO
+  },
+
+  onLinkUpKey () {
+    const { onUpKey: bubble } = this.props
+    bubble()
+  },
+
+  onLinkDownKey () {
+    const { onDownKey: bubble } = this.props
+    const { hasChildren } = this.state
+    const { item0: firstItem } = this.refs
+
+    if (hasChildren) {
+      this.blur()
+      firstItem.focus()
+    } else {
+      bubble()
+    }
+  },
+
+  onSubmenuUpKey (index) {
+    this.refs[`item${index}`].blur()
+
+    if (index === 0) {
+      this.focus()
+    } else {
+      this.refs[`item${index - 1}`].focusLast()
+    }
+  },
+
+  onSubmenuDownKey (index) {
+    const { item, onDownKey: bubble } = this.props
+
+    if (index === item.count() - 1) {
+      bubble()
+    } else {
+      this.refs[`item${index}`].blur()
+      this.refs[`item${index + 1}`].focus()
+    }
+  },
+
   renderLink () {
     const { submenuId } = this
-    const { className: baseClassName, item: { title, url }, level } = this.props
-    const { expanded, hasChildren } = this.state
+
+    const {
+      className: baseClassName,
+      item: { title, url },
+      level
+    } = this.props
+
+    const { expanded, canTab, hasChildren } = this.state
     const isClickable = !!url
+    const tabIndex = canTab ? 0 : -1
 
     const className = classNames({
       [`${baseClassName}__link`]: true,
@@ -72,7 +189,11 @@ ReactiveMenu.MenuItem = React.createClass({
     const commonProps = {
       'aria-level': level,
       className,
-      role: 'treeitem'
+      onClick: this.onLinkClick,
+      onKeyUp: this.onLinkKeyUp,
+      ref: 'link',
+      role: 'treeitem',
+      tabIndex
     }
 
     if (hasChildren) {
@@ -115,7 +236,15 @@ ReactiveMenu.MenuItem = React.createClass({
 
   renderSubMenu () {
     const { submenuId } = this
-    const { className: baseClassName, depth, item, level } = this.props
+
+    const {
+      className: baseClassName,
+      expandable,
+      depth,
+      item,
+      level
+    } = this.props
+
     const { hasChildren } = this.state
     const subMenuLevel = level + 1
 
@@ -127,16 +256,22 @@ ReactiveMenu.MenuItem = React.createClass({
 
       return (
         <div className={className} id={submenuId} role='group'>
-          {item.map(item => {
+          {item.map((item, index) => {
             const { id } = item
 
             return (
               <ReactiveMenu.MenuItem
                 className={baseClassName}
                 depth={depth}
+                expandable={expandable}
+                index={index}
                 item={item}
                 key={id}
                 level={subMenuLevel}
+                onDownKey={this.onSubmenuDownKey.bind(this, index)}
+                onFocus={this.props.onFocus}
+                onUpKey={this.onSubmenuUpKey.bind(this, index)}
+                ref={`item${index}`}
               />
             )
           })}

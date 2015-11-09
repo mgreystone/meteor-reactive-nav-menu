@@ -5,17 +5,20 @@ ReactiveMenu.Menu = React.createClass({
   propTypes: {
     className: React.PropTypes.string,
     depth: React.PropTypes.number,
+    expandable: React.PropTypes.bool,
     id: React.PropTypes.string.isRequired
   },
 
   getDefaultProps () {
     return {
-      className: 'reactive-menu'
+      className: 'reactive-menu',
+      expandable: false
     }
   },
 
   getInitialState () {
     return {
+      current: null,
       menu: null
     }
   },
@@ -23,6 +26,10 @@ ReactiveMenu.Menu = React.createClass({
   componentWillMount () {
     this._forceUpdateBound = this.forceUpdate.bind(this)
     this.updateMenu()
+  },
+
+  componentDidMount () {
+    this.focusedItem = this.refs.item0
   },
 
   componentWillReceiveProps (nextProps) {
@@ -41,6 +48,7 @@ ReactiveMenu.Menu = React.createClass({
     const { menu: prevMenu } = this.state
     const { id } = props
     const menu = ReactiveMenu.getMenu(id)
+    let current
 
     if (menu !== prevMenu) {
       if (!menu) {
@@ -55,30 +63,65 @@ ReactiveMenu.Menu = React.createClass({
         menu.events.on('update', this._forceUpdateBound)
       }
 
-      this.setState({ menu })
+      this.setState({ current, menu })
+    }
+  },
+
+  onClick () {
+    const focusedItem = this.focusedItem
+    if (focusedItem) {
+      focusedItem.blur()
+    }
+  },
+
+  onItemDownKey (index) {
+    const { menu } = this.state
+
+    if (index < menu.count() - 1) {
+      this.refs[`item${index}`].blur()
+      this.refs[`item${index + 1}`].focus()
+    }
+  },
+
+  onItemFocus (sender) {
+    this.focusedItem = sender
+  },
+
+  onItemUpKey (index) {
+    if (index > 0) {
+      this.refs[`item${index}`].blur()
+      this.refs[`item${index - 1}`].focusLast()
     }
   },
 
   render () {
-    const { className, depth } = this.props
-    const { menu } = this.state
+    const { className, depth, expandable } = this.props
+    const { current, menu } = this.state
 
     if (!menu || depth === 0) {
       return null
     }
 
     return (
-      <nav className={className} role='tree'>
-        {menu.map(item => {
+      <nav className={className} onClickCapture={this.onClick} role='tree'>
+        {menu.map((item, index) => {
           const { id } = item
+          const focusable = item === current
 
           return (
             <ReactiveMenu.MenuItem
               className={className}
               depth={depth}
+              expandable={expandable}
+              focusable={focusable}
+              index={index}
               item={item}
               key={id}
               level={1}
+              onDownKey={this.onItemDownKey.bind(this, index)}
+              onFocus={this.onItemFocus}
+              onUpKey={this.onItemUpKey.bind(this, index)}
+              ref={`item${index}`}
             />
           )
         })}
