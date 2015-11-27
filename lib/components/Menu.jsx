@@ -103,9 +103,11 @@ ReactiveMenu.Menu = React.createClass({
   },
 
   onItemUpKey (index) {
+    const { expandable } = this.props
+
     if (index > 0) {
       this.refs[`item${index}`].blur()
-      this.refs[`item${index - 1}`].focusLast()
+      this.refs[`item${index - 1}`][expandable ? 'focus' : 'focusLast']()
     }
   },
 

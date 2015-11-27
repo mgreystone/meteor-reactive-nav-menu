@@ -17,12 +17,12 @@ ReactiveMenu.MenuItem = React.createClass({
   },
 
   getInitialState () {
-    const { index, level } = this.props
+    const { expandable, index, level } = this.props
 
     return {
       animating: false,
       canTab: index === 0 && level === 1,
-      expanded: false
+      expanded: !expandable
     }
   },
 
@@ -135,10 +135,10 @@ ReactiveMenu.MenuItem = React.createClass({
 
   onLinkDownKey () {
     const { onDownKey: bubble } = this.props
-    const { hasChildren } = this.state
+    const { expanded, hasChildren } = this.state
     const { item0: firstItem } = this.refs
 
-    if (hasChildren) {
+    if (hasChildren && expanded) {
       this.blur()
       firstItem.focus()
     } else {
@@ -147,9 +147,11 @@ ReactiveMenu.MenuItem = React.createClass({
   },
 
   onSubmenuUpKey (index) {
+    const { expanded } = this.state
+
     this.refs[`item${index}`].blur()
 
-    if (index === 0) {
+    if (index === 0 || !expanded) {
       this.focus()
     } else {
       this.refs[`item${index - 1}`].focusLast()
