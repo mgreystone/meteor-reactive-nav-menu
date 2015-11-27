@@ -13,7 +13,14 @@ ReactiveMenu.MenuItem = React.createClass({
     level: React.PropTypes.number.isRequired,
     onDownKey: React.PropTypes.func.isRequired,
     onFocus: React.PropTypes.func.isRequired,
+    onLeftKey: React.PropTypes.func,
     onUpKey: React.PropTypes.func.isRequired
+  },
+
+  getDefaultProps () {
+    return {
+      onLeftKey: noop
+    }
   },
 
   getInitialState () {
@@ -121,11 +128,28 @@ ReactiveMenu.MenuItem = React.createClass({
   },
 
   onLinkLeftKey () {
-    // TODO
+    const { expandable } = this.props
+    const { expanded } = this.state
+
+    if (expandable && expanded) {
+      this.setState({ expanded: false })
+    } else {
+      this.props.onLeftKey()
+    }
   },
 
   onLinkRightKey () {
-    // TODO
+    const { expandable } = this.props
+    const { hasChildren } = this.state
+
+    if (expandable) {
+      this.setState({ expanded: true })
+    }
+
+    if (hasChildren) {
+      this.blur()
+      this.refs.item0.focus()
+    }
   },
 
   onLinkUpKey () {
@@ -167,6 +191,11 @@ ReactiveMenu.MenuItem = React.createClass({
       this.refs[`item${index}`].blur()
       this.refs[`item${index + 1}`].focus()
     }
+  },
+
+  onSubmenuLeftKey (index) {
+    this.refs[`item${index}`].blur()
+    this.focus()
   },
 
   renderLink () {
@@ -272,6 +301,7 @@ ReactiveMenu.MenuItem = React.createClass({
                 level={subMenuLevel}
                 onDownKey={this.onSubmenuDownKey.bind(this, index)}
                 onFocus={this.props.onFocus}
+                onLeftKey={this.onSubmenuLeftKey.bind(this, index)}
                 onUpKey={this.onSubmenuUpKey.bind(this, index)}
                 ref={`item${index}`}
               />
@@ -318,3 +348,5 @@ function totalBadges (item) {
 
   return result
 }
+
+function noop () {}
